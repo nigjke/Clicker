@@ -1,53 +1,131 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Runtime.InteropServices;
+using System.Threading;
 
-namespace ZapretMouseMacro
+class Program
 {
-    class Program
+    [DllImport("user32.dll")]
+    static extern bool GetCursorPos(out POINT lpPoint);
+
+    [DllImport("user32.dll")]
+    static extern bool SetCursorPos(int X, int Y);
+
+    [DllImport("user32.dll")]
+    static extern void mouse_event(int dwFlags, int dx, int dy, int dwData, int dwExtraInfo);
+
+    [DllImport("user32.dll")]
+    static extern bool RegisterHotKey(IntPtr hWnd, int id, uint fsModifiers, uint vk);
+
+    [DllImport("user32.dll")]
+    static extern bool UnregisterHotKey(IntPtr hWnd, int id);
+
+    [DllImport("user32.dll")]
+    static extern bool GetMessage(out MSG lpMsg, IntPtr hWnd, uint wMsgFilterMin, uint wMsgFilterMax);
+
+    const int MOUSEEVENTF_LEFTDOWN = 0x0002;
+    const int MOUSEEVENTF_LEFTUP = 0x0004;
+    const int WM_HOTKEY = 0x0312;
+
+    struct POINT { public int X; public int Y; }
+
+    [StructLayout(LayoutKind.Sequential)]
+    struct MSG
     {
-        static void Main()
+        public IntPtr hwnd;
+        public uint message;
+        public IntPtr wParam;
+        public IntPtr lParam;
+        public uint time;
+        public POINT pt;
+    }
+
+    static List<POINT> points = new List<POINT>();
+    static bool isAdding = true;
+    static int clickDelay = 200;
+
+    static void Main()
+    {
+        Console.WriteLine("'zapret' is ALREADY RUNNING as service, use 'service.bat' and choose 'Remove Services' first if you want to run standalone bat.");
+        Console.WriteLine("Press any key to continue . . .");
+
+        bool isChecked = false;
+        var key = Console.ReadKey(true);
+
+        if (!char.IsDigit(key.KeyChar) && isChecked == false)
+            Environment.Exit(0);
+
+        isChecked = true;
+
+        Console.Clear();
+        Console.Write("Введите задержку между кликами (мс): ");
+        clickDelay = int.Parse(Console.ReadLine());
+
+        Console.WriteLine("F8 - добавить точку");
+        Console.WriteLine("F9 - закончить добавление");
+        Console.WriteLine("F10 - очистить все точки");
+
+        RegisterHotKey(IntPtr.Zero, 1, 0, (uint)ConsoleKey.F8);
+        RegisterHotKey(IntPtr.Zero, 2, 0, (uint)ConsoleKey.F9);
+        RegisterHotKey(IntPtr.Zero, 3, 0, (uint)ConsoleKey.F10);
+
+        while (GetMessage(out MSG msg, IntPtr.Zero, 0, 0))
         {
-            Console.WriteLine("'zapret' is ALREADY RUNNING as service.");
-            Console.WriteLine("Press any key to continue . . .");
-
-            bool isChecked = false;
-            var key = Console.ReadKey(true);
-            if (!char.IsDigit(key.KeyChar) && !isChecked)
-                Environment.Exit(0);
-
-            isChecked = true;
-
-            Console.Clear();
-            Console.Write("Введите задержку между кликами (мс): ");
-            int clickDelay = int.Parse(Console.ReadLine());
-
-            var clicker = new MouseClicker(clickDelay);
-            var hotKeys = new HotKeyManager();
-
-            bool isAdding = true;
-
-            Console.WriteLine("F8 - добавить точку / клик по всем после F9");
-            Console.WriteLine("F9 - закончить добавление");
-            Console.WriteLine("F10 - очистить все точки");
-
-            hotKeys.RegisterHotKey(1, ConsoleKey.F8, () =>
+            if (msg.message != WM_HOTKEY) continue;
+            if (msg.wParam == (IntPtr)1)
             {
-                if (isAdding) clicker.AddPoint();
-                else clicker.ClickCurrentCursorThenAllPoints();
-            });
+                if (isAdding)
+                    AddPoint();
+                else
+                    ClickCurrentCursorThenAllPoints();
+            }
 
-            hotKeys.RegisterHotKey(2, ConsoleKey.F9, () =>
+            if (msg.wParam == (IntPtr)2)
             {
                 isAdding = false;
                 Console.WriteLine("Режим добавления завершён.");
-            });
+            }
 
-            hotKeys.RegisterHotKey(3, ConsoleKey.F10, () =>
+            if (msg.wParam == (IntPtr)3)
             {
-                clicker.ClearPoints();
-            });
-
-            hotKeys.RunMessageLoop();
-            hotKeys.UnregisterAll();
+                points.Clear();
+                Console.WriteLine("Все точки очищены.");
+            }
         }
+
+        UnregisterHotKey(IntPtr.Zero, 1);
+        UnregisterHotKey(IntPtr.Zero, 2);
+        UnregisterHotKey(IntPtr.Zero, 3);
+    }
+
+    static void AddPoint()
+    {
+        GetCursorPos(out POINT p);
+        points.Add(p);
+        Click();
+
+        Console.WriteLine($"Точка добавлена: X={p.X}, Y={p.Y}");
+    }
+
+    static void ClickCurrentCursorThenAllPoints()
+    {
+        GetCursorPos(out POINT current);
+
+        SetCursorPos(current.X, current.Y);
+        Click();
+        Thread.Sleep(clickDelay);
+
+        foreach (var p in points)
+        {
+            SetCursorPos(p.X, p.Y);
+            Click();
+            Thread.Sleep(clickDelay);
+        }
+    }
+
+    static void Click()
+    {
+        mouse_event(MOUSEEVENTF_LEFTDOWN, 0, 0, 0, 0);
+        mouse_event(MOUSEEVENTF_LEFTUP, 0, 0, 0, 0);
     }
 }
