@@ -46,20 +46,37 @@ class Program
 
     static void Main()
     {
+        try
+        {
+            RunProgram();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine("Ошибка: " + ex.Message);
+            Console.WriteLine("Нажмите любую клавишу для выхода...");
+            Console.ReadKey();
+        }
+    }
+
+    static void RunProgram()
+    {
         Console.WriteLine("'zapret' is ALREADY RUNNING as service, use 'service.bat' and choose 'Remove Services' first if you want to run standalone bat.");
         Console.WriteLine("Press any key to continue . . .");
 
-        bool isChecked = false;
         var key = Console.ReadKey(true);
 
-        if (!char.IsDigit(key.KeyChar) && isChecked == false)
+        if (!char.IsDigit(key.KeyChar))
+        {
+            Console.WriteLine("Нажата неверная клавиша. Программа завершена.");
             Environment.Exit(0);
-
-        isChecked = true;
+        }
 
         Console.Clear();
         Console.Write("Введите задержку между кликами (мс): ");
-        clickDelay = int.Parse(Console.ReadLine());
+        if (!int.TryParse(Console.ReadLine(), out clickDelay))
+        {
+            clickDelay = 80; 
+        }
 
         Console.WriteLine("F8 - добавить точку");
         Console.WriteLine("F9 - закончить добавление");
@@ -72,6 +89,7 @@ class Program
         while (GetMessage(out MSG msg, IntPtr.Zero, 0, 0))
         {
             if (msg.message != WM_HOTKEY) continue;
+
             if (msg.wParam == (IntPtr)1)
             {
                 if (isAdding)
@@ -103,7 +121,6 @@ class Program
         GetCursorPos(out POINT p);
         points.Add(p);
         Click();
-
         Console.WriteLine($"Точка добавлена: X={p.X}, Y={p.Y}");
     }
 
