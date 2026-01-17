@@ -60,50 +60,48 @@ class Program
 
     static void RunProgram()
     {
-        Console.WriteLine("'zapret' is ALREADY RUNNING as service, use 'service.bat' and choose 'Remove Services' first if you want to run standalone bat.");
+        Console.WriteLine("'zapret' is ALREADY RUNNING as service...");
         Console.WriteLine("Press any key to continue . . .");
 
         var key = Console.ReadKey(true);
 
         if (!char.IsDigit(key.KeyChar))
-        {
-            Console.WriteLine("Нажата неверная клавиша. Программа завершена.");
             Environment.Exit(0);
-        }
 
         Console.Clear();
         Console.Write("Введите задержку между кликами (мс): ");
-        if (!int.TryParse(Console.ReadLine(), out clickDelay))
-        {
-            clickDelay = 80; 
-        }
 
-        Console.WriteLine("F8 - добавить точку");
-        Console.WriteLine("F9 - закончить добавление");
-        Console.WriteLine("F10 - очистить все точки");
+        if (!int.TryParse(Console.ReadLine(), out clickDelay))
+            clickDelay = 80;
+
+        Console.WriteLine("F8  - добавить точку (без клика)");
+        Console.WriteLine("F9  - закончить добавление / начать клики");
+        Console.WriteLine("HOME - очистить точки");
 
         RegisterHotKey(IntPtr.Zero, 1, 0, (uint)ConsoleKey.F8);
         RegisterHotKey(IntPtr.Zero, 2, 0, (uint)ConsoleKey.F9);
-        RegisterHotKey(IntPtr.Zero, 3, 0, (uint)ConsoleKey.F10);
-
+        RegisterHotKey(IntPtr.Zero, 3, 0, (uint)ConsoleKey.Home); 
         while (GetMessage(out MSG msg, IntPtr.Zero, 0, 0))
         {
             if (msg.message != WM_HOTKEY) continue;
 
+            // F8
             if (msg.wParam == (IntPtr)1)
             {
                 if (isAdding)
-                    AddPoint();
+                    AddPoint();         
                 else
                     ClickCurrentCursorThenAllPoints();
             }
 
+            // F9
             if (msg.wParam == (IntPtr)2)
             {
                 isAdding = false;
-                Console.WriteLine("Режим добавления завершён.");
+                Console.WriteLine("Режим добавления завершён. Клики активны.");
             }
 
+            // HOME (NumPad 7)
             if (msg.wParam == (IntPtr)3)
             {
                 points.Clear();
@@ -116,11 +114,11 @@ class Program
         UnregisterHotKey(IntPtr.Zero, 3);
     }
 
+    // ТЕПЕРЬ БЕЗ КЛИКА
     static void AddPoint()
     {
         GetCursorPos(out POINT p);
         points.Add(p);
-        Click();
         Console.WriteLine($"Точка добавлена: X={p.X}, Y={p.Y}");
     }
 
